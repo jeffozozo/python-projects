@@ -1,0 +1,11 @@
+# data for the animals guessing game. populates a binary tree.
+# format for each line is: answer to the question on the previous line, data
+# in-order traversal
+# root is the first node, designated by 'root'
+root,"is it a mammal?"
+yes,"Does it bark?"
+yes,"Is it a Dog?"
+no,"Is it a Cat?"
+no,"Does it fly?"
+yes,"Is it a Bird?"
+no, "Is it a Fish?"
