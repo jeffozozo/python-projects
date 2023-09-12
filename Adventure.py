@@ -1,4 +1,5 @@
 import random
+import copy
 
 
 class Character:
@@ -6,6 +7,7 @@ class Character:
         self.name = name
         self.level = level
         self.hitpoints = hitdice*level
+        self.alive = True
         
         if level > 5:
             damagemax = damagemax + level
@@ -14,12 +16,22 @@ class Character:
         self.damagemax = damagemax
         
     def stats(self,str_class):
-        print(self.name + ", level " + str(self.level) +" "+ str_class+ " - Hitpoints " + str(self.hitpoints))
+        if self.hitpoints <= 0:
+            print(self.name + " is dead.")
+        else:
+            print(self.name + ", level " + str(self.level) +" "+ str_class+ " - Hitpoints " + str(self.hitpoints))
 
-    def attack(self,attack_string):
+    def attack(self,attack_string,monster):
         damage = random.randrange(self.damagemin,self.damagemax)
-        print(self.name + " "+ attack_string + " for "+ str(damage) + " points of damage.")
-        return damage
+        print(self.name + " "+ attack_string + " the " + monster.name + " for "+ str(damage) + " points of damage.")
+        monster.take_damage(damage)
+    
+    def take_damage(self,damage):
+        self.hitpoints -= damage
+        if self.hitpoints <= 0:
+            print(self.name + " has died.")
+            self.alive = False
+            
 
 
 class Monster:
@@ -27,15 +39,26 @@ class Monster:
         self.name = name
         self.description = description
         self.level = 1
-        self.hitpoints = self.level*random.randrange(1,2)
+        self.hitpoints = self.level*random.randrange(2,6)
         self.damagemin = 1
         self.damagemax = 4
+        self.alive = True
+        self.hitdice = 1
+        self.weapons = []
         
-    def attack(self,attack_string):
+    def attack(self, player):
         damage = random.randrange(self.damagemin,self.damagemax)
-        print(self.name + " "+ attack_string + " for "+ str(damage) + " points of damage.")
-        return damage
-
+        weapon = random.choice(self.weapons)
+        print(self.name + " attacks "+ player.name + " with its " + weapon + " for "+ str(damage) + " points of damage.")
+        player.take_damage(damage)
+        
+    def take_damage(self,damage):
+        self.hitpoints -= damage
+        print(self.name + " has " + str(self.hitpoints))
+        if self.hitpoints <= 0:
+            print(self.name + " has been killed!")
+            self.alive = False
+            
 
 
 class Thief(Character):
@@ -43,15 +66,15 @@ class Thief(Character):
     def __init__(self, name, level):
         damagemin = 1
         damagemax = 6
-        hitdice = 4
+        hitdice = 4    
         
         super().__init__(name,level,hitdice,damagemin,damagemax)
         
     def stats(self):
         super().stats("Theif")
        
-    def attack(self):
-        super().attack("back stabs")
+    def attack(self,monster):
+        super().attack("back stabs",monster)
        
         
 class Fighter(Character):
@@ -67,8 +90,8 @@ class Fighter(Character):
         super().stats("Fighter")
  
     
-    def attack(self):
-        super().attack("swings a sword")
+    def attack(self,monster):
+        super().attack("swings a sword at",monster)
 
 
 
@@ -85,18 +108,18 @@ class Wizard(Character):
         super().stats("Wizard")
  
         
-    def attack(self):
-       super().attack("casts a spell")
+    def attack(self,monster):
+       super().attack("casts a spell at",monster)
        
 
-
-
 class Game:
-    def __init__(self):
-        self.current = 0
+    def __init__(self,difficulty):
+        self.current_location = 0
         self.monsters = []
         self.current_monster = None
-        
+        self.party = []
+        self.difficulty = difficulty
+
         #locations
         self.locations = ["You are at the mouth of a dark forest. A path leads ahead of you into the forest. The trees are oak, sycamore and fir. The path is rocky and moss covered.",
                       "You're on a rocky path at the mouth of the forrest. The air smells clean and earthy. Light filters through the gaps in the tall trees. Small animals scuttle away at your arrival",
@@ -104,7 +127,7 @@ class Game:
                       "You are at the top of a short hill. The trees are getting thicker, closer together. Light the shade is deep. A small stream is near by.",
                       "The path leads through a small but swift running stream."]
         #monsters
-        monster = Monster("Goblin", "a slimy, small humanoid with green skin, big ears and sharp teeth.")
+        monster = Monster("Goblin", "You see a slimy, small humanoid with green skin, big ears and sharp teeth.")
         monster.level = 3
         monster.hitdice = 4
         monster.damagemin = 1
@@ -112,7 +135,7 @@ class Game:
         monster.weapons = ["club","rusty knife","flail","bare hands"]
         self.monsters.append(monster)
 
-        monster = Monster("Giant Spider", "a massive shiny black spider.")
+        monster = Monster("Giant Spider", "In a thick, sticky web, a massive shiny black spider sits making angry clicking sounds.")
         monster.level = 2
         monster.hitdice = 6
         monster.damagemin = 2
@@ -120,7 +143,7 @@ class Game:
         monster.weapons = ["fangs","poison spit","front legs","spinnerettes"]
         self.monsters.append(monster)
         
-        monster = Monster("Dire Wolf","giant dark grey wolf with red eyes.")
+        monster = Monster("Dire Wolf","There is a giant dark grey wolf with red eyes here.")
         monster.level = 4
         monster.hitdice = 4
         monster.damagemin = 4
@@ -137,14 +160,81 @@ class Game:
         print("hint - gives you a hint for how to solve a puzzle.")
      
     def print_location(self):
-        print(self.locations[self.current])
+        print()
+        print(self.locations[self.current_location])
         if self.current_monster is not None:
-            print(self.current_monster.description)
+            if self.current_monster.alive:
+                print(self.current_monster.description)
+            else:
+                print("There is a dead "+self.current_monster.name+" here.")
             
         
-    def monster_appears(self):
-        self.current_monster = random.choice(self.monsters)
-        return self.current_monster.description
+    def test_for_monster(self):      
+        if self.current_monster is None and random.randrange(0,10) < self.difficulty:
+            monster = random.choice(self.monsters)
+            self.current_monster = copy.deepcopy(monster)
+            
+        
+    def prompt(self):
+        return input("What would you like to do? :")
+    
+    def handle_attack(self):
+        if self.current_monster is None:
+            print("there is nothing to attack.")
+            return
+        
+        if not self.current_monster.alive:
+            print("You already killed the "+self.current_monster.name+".")
+            return
+
+        print()
+        print("You attack the " + self.current_monster.name +"!")
+        number_in_party = len(self.party)
+        party_ok = True
+        while(self.current_monster.alive):
+            if not party_ok:
+                print("All of the party members are dead.")
+                break
+            # loop through each person in the party, but check to see if the monster gets an attack in between
+            for count in range(number_in_party):
+                #if the toss is high, the monster attacks
+                if random.randrange(0,10) < self.difficulty: 
+                    player = random.choice(self.party)
+                    self.current_monster.attack(player)
+                else:
+                    self.party[count].attack(self.current_monster)
+                    #if monster is dead, break out of the loop
+                    if self.current_monster.hitpoints <= 0:
+                        break
+                    
+            #as long as one party member is still alive, keep going
+                party_ok = False
+                for player in party:
+                    if player.alive:
+                        party_ok = True
+                        
+    def handle_sneak(self):
+        if self.current_monster is None:
+            print("There's no monster about. Don't you feel a little silly sneaking.")
+            self.current_location += 1
+            return
+        
+        if self.current_monster.alive:
+            if random.randrange(0,10) < self.difficulty:
+                player = random.choice(self.party)
+                print(player.name + " made some noise. The "+ self.current_monster.name + " looks right at you and attacks!")
+                self.handle_attack()
+            else:
+                print("You sneak quietly by the "+self.current_monster.name)
+                self.current_location += 1
+                self.current_monster = None
+                
+    def party_stats(self):
+        print()
+        print("There are " + str(len(self.party))+" people in your party with the following stats")
+        for p in self.party:
+            p.stats()
+    
     
     def do(self,command):
     
@@ -153,29 +243,51 @@ class Game:
                 self.help()
             
             case "attack" | "a" :
-                print("you attack")
+                self.handle_attack()
         
             case "look"|"l" :
-                self.print_location()
+                # you're going to see again anyway - this is essentially a no-op
+                print()
+                
+            case "sneak" | "s":
+                self.handle_sneak()
+                
+            case "stats" | "st":
+                self.party_stats()
+                
+            case "exit" | "quit" | "q" | "e":
+                if input("Are you sure you'd like to quit? (y/n)") == "y":
+                    return "exit"
+                
+            case "forward" | "f":
+                if self.current_monster is not None and self.current_monster.alive:
+                    print("You can't go anywhere with that monster staring at you.")
+                else:
+                    self.current_location += 1
+                    self.current_monster = None
+                
+        return "keep playing"
+                 
         
         
 
 # Start Game
 
-the_game = Game()
+the_game = Game(7)
 
 #set up players
-players = []
+party = []
 
-player = Thief("Timmy",3)
-players.append(player)
+player = Thief("Theodore",3)
+party.append(player)
 
 player = Fighter("Gug",3)
-players.append(player)
+party.append(player)
 
 player = Wizard("Zippo",4)
-players.append(player)
+party.append(player)
 
+the_game.party = party
 
 print("Welcome to the Adventure Game!")
 print("In this simple game, you'll need to use your imagination. You are traveling along a road through a forest on the way to a castle.")
@@ -183,38 +295,33 @@ print("You will encounter monsters and tricky situations. You'll need your wits 
 print("Press Enter to begin. (you can type 'help' at any time for a list of things you can do)")
 input()
 
+print()
+print()
 
-
-print("There are three people in your party with the following stats")
-for p in players:
-    p.stats()
+the_game.party_stats()
 
 print()
 
+
+
+
+
 #game loop
 
-while(True):
+answer = " "
 
-    if random.randrange(0,10) > 1:
-        monster = the_game.monster_appears()
+while(answer != "exit"):
 
 
-#command loop
-    while(True):
-        the_game.print_location()
-
-        #prompt
-        print("What would you like to do?")
-        print(":")
-        answer = input()
-        if answer == "exit":
-            break
-        
-        the_game.do(answer)
+    the_game.test_for_monster()
+    the_game.print_location()
+    answer = the_game.prompt()
+    answer = the_game.do(answer)
+    
     
 
 
-#actions: look, attack, sneak, quit,
+
 
 
 
